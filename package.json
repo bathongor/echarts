@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "concurrently \"next dev --turbopack\" \"npm run ws:dev\"",
+    "dev:next": "next dev --turbopack",
+    "ws:dev": "node server/websocket-server.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -12,15 +14,18 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@types/echarts": "^4.9.22",
     "@types/papaparse": "^5.3.16",
+    "@types/ws": "^8.18.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "concurrently": "^9.2.0",
     "echarts": "^6.0.0",
     "lucide-react": "^0.540.0",
     "next": "15.4.7",
     "papaparse": "^5.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

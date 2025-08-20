@@ -6,10 +6,10 @@ import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import * as echarts from 'echarts';
-import Papa from 'papaparse';
 import StockSummary from '@/components/StockSummary';
 import DataOverview from '@/components/DataOverview';
 import ChartActions from '@/components/ChartActions';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface StockData {
   date: string;
@@ -30,39 +30,12 @@ const formatDate = (dateString: string): string => {
 };
 
 export default function Dashboard() {
-  const [stockData, setStockData] = useState<StockData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState<'all' | 'year' | 'quarter' | 'month'>('month');
+  const { stockData, connectionStatus, error, reconnect } = useWebSocket();
+  const [dateRange, setDateRange] = useState<'all' | 'year' | 'quarter' | 'month'>('all');
   const [aggregationType, setAggregationType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-
-  useEffect(() => {
-    loadStockData();
-  }, []);
-
-  const loadStockData = async () => {
-    try {
-      const response = await fetch('/stock_data/BA_data.csv');
-      const csvText = await response.text();
-      
-      Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: true,
-        transform: (value, header) => {
-          if (header === 'date') return value;
-          if (header === 'Name') return value;
-          return parseFloat(value);
-        },
-        complete: (results) => {
-          const data = results.data as StockData[];
-          setStockData(data);
-          setLoading(false);
-        }
-      });
-    } catch (error) {
-      console.error('Error loading stock data:', error);
-      setLoading(false);
-    }
-  };
+  
+  const loading = connectionStatus === 'connecting';
+  const isConnected = connectionStatus === 'connected';
 
   const getFilteredData = (): StockData[] => {
     if (stockData.length === 0) return [];
@@ -206,7 +179,7 @@ export default function Dashboard() {
 
   const lineChartOption: echarts.EChartsOption = {
     title: {
-      text: `Boeing (BA) ${aggregationType.charAt(0).toUpperCase() + aggregationType.slice(1)} Price Trend`,
+      text: `Boeing (BA) Real-time Price Trend (${aggregationType.charAt(0).toUpperCase() + aggregationType.slice(1)})`,
       left: 'center',
       textStyle: {
         fontSize: 24,
@@ -345,11 +318,28 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                Boeing (BA) Stock Analysis
+                Boeing (BA) Stock Analysis - Live Data
               </h1>
-              <p className="text-sm text-muted-foreground">
-                Clean stock price line chart with trend analysis
-              </p>
+              <div className="flex items-center space-x-2">
+                <p className="text-sm text-muted-foreground">
+                  Real-time stock price updates via WebSocket
+                </p>
+                <div className="flex items-center space-x-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    connectionStatus === 'connected' ? 'bg-green-500' :
+                    connectionStatus === 'connecting' ? 'bg-yellow-500' :
+                    connectionStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'
+                  }`}></div>
+                  <span className="text-xs text-muted-foreground capitalize">
+                    {connectionStatus}
+                  </span>
+                </div>
+              </div>
+              {error && (
+                <p className="text-xs text-red-500 mt-1">
+                  {error}
+                </p>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               {!loading && filteredData.length > 0 && (
@@ -365,7 +355,7 @@ export default function Dashboard() {
               )}
               <div className="text-xs text-muted-foreground">
                 {filteredData.length > 0 && (
-                  `${formatDate(filteredData[0].date)} to ${formatDate(filteredData[filteredData.length - 1].date)}`
+                  `Last ${filteredData.length} data points`
                 )}
               </div>
             </div>
@@ -459,7 +449,7 @@ export default function Dashboard() {
                 aggregationType={aggregationType}
               />
 
-              <ChartActions onRefreshData={loadStockData} />
+              <ChartActions onRefreshData={reconnect} />
             </div>
           </div>
         </main>
